@@ -18,7 +18,7 @@ const Hero = ({ scrollToSection, openModal }) => {
           <div className="space-y-8">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-full text-xs font-bold uppercase tracking-wider">
               <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>
-              Serving Tirupati Since 20XX
+              Serving Tirupati Since 2021
             </div>
 
             <h1 className="text-5xl md:text-6xl font-extrabold text-blue-900 leading-tight">
