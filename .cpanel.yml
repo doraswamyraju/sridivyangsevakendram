@@ -1,0 +1,13 @@
+---
+deployment:
+  tasks:
+    # 1. Copy Frontend Build files to your domain folder
+    - export DEPLOYPATH=/home3/rajugda1/sridivyangsevakendram.org/
+    - /bin/cp -R frontend/dist/* $DEPLOYPATH
+
+    # 2. Copy API (Backend) files
+    - /bin/cp -R api/* $DEPLOYPATH/api/
+
+    # 3. Copy Libs and Receipts (recursively)
+    - /bin/cp -R api/libs $DEPLOYPATH/api/
+    - /bin/cp -R api/receipts $DEPLOYPATH/api/
