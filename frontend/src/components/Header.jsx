@@ -43,7 +43,7 @@ const Header = ({ onOpenDonate }) => {
           />
           <div className="flex flex-col leading-tight text-blue-900">
             <span className="font-extrabold text-2xl tracking-tight">SSK Trust</span>
-            <span className="text-xs font-bold tracking-widest uppercase opacity-70">Divyanga Seva Kendram</span>
+            <span className="text-xs font-bold tracking-widest uppercase opacity-70">Divyang Seva Kendram</span>
           </div>
         </div>
 
