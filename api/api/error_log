@@ -1,0 +1,35 @@
+[29-Dec-2025 20:22:40 UTC] PHP Warning:  Undefined variable $conn in /home3/rajugda1/sridivyangsevakendram.org/api/news.php on line 25
+[29-Dec-2025 20:22:40 UTC] PHP Fatal error:  Uncaught Error: Call to a member function prepare() on null in /home3/rajugda1/sridivyangsevakendram.org/api/news.php:25
+Stack trace:
+#0 {main}
+  thrown in /home3/rajugda1/sridivyangsevakendram.org/api/news.php on line 25
+[29-Dec-2025 20:25:40 UTC] PHP Warning:  Undefined variable $conn in /home3/rajugda1/sridivyangsevakendram.org/api/news.php on line 25
+[29-Dec-2025 20:25:40 UTC] PHP Fatal error:  Uncaught Error: Call to a member function prepare() on null in /home3/rajugda1/sridivyangsevakendram.org/api/news.php:25
+Stack trace:
+#0 {main}
+  thrown in /home3/rajugda1/sridivyangsevakendram.org/api/news.php on line 25
+[29-Dec-2025 20:27:21 UTC] PHP Warning:  Undefined variable $conn in /home3/rajugda1/sridivyangsevakendram.org/api/news.php on line 25
+[29-Dec-2025 20:27:21 UTC] PHP Fatal error:  Uncaught Error: Call to a member function prepare() on null in /home3/rajugda1/sridivyangsevakendram.org/api/news.php:25
+Stack trace:
+#0 {main}
+  thrown in /home3/rajugda1/sridivyangsevakendram.org/api/news.php on line 25
+[29-Dec-2025 20:27:33 UTC] PHP Warning:  Undefined variable $conn in /home3/rajugda1/sridivyangsevakendram.org/api/login.php on line 7
+[29-Dec-2025 20:27:33 UTC] PHP Fatal error:  Uncaught Error: Call to a member function prepare() on null in /home3/rajugda1/sridivyangsevakendram.org/api/login.php:7
+Stack trace:
+#0 {main}
+  thrown in /home3/rajugda1/sridivyangsevakendram.org/api/login.php on line 7
+[29-Dec-2025 20:27:37 UTC] PHP Warning:  Undefined variable $conn in /home3/rajugda1/sridivyangsevakendram.org/api/login.php on line 7
+[29-Dec-2025 20:27:37 UTC] PHP Fatal error:  Uncaught Error: Call to a member function prepare() on null in /home3/rajugda1/sridivyangsevakendram.org/api/login.php:7
+Stack trace:
+#0 {main}
+  thrown in /home3/rajugda1/sridivyangsevakendram.org/api/login.php on line 7
+[29-Dec-2025 20:27:46 UTC] PHP Warning:  Undefined variable $conn in /home3/rajugda1/sridivyangsevakendram.org/api/login.php on line 7
+[29-Dec-2025 20:27:46 UTC] PHP Fatal error:  Uncaught Error: Call to a member function prepare() on null in /home3/rajugda1/sridivyangsevakendram.org/api/login.php:7
+Stack trace:
+#0 {main}
+  thrown in /home3/rajugda1/sridivyangsevakendram.org/api/login.php on line 7
+[29-Dec-2025 20:32:26 UTC] PHP Warning:  Undefined variable $conn in /home3/rajugda1/sridivyangsevakendram.org/api/login.php on line 7
+[29-Dec-2025 20:32:26 UTC] PHP Fatal error:  Uncaught Error: Call to a member function prepare() on null in /home3/rajugda1/sridivyangsevakendram.org/api/login.php:7
+Stack trace:
+#0 {main}
+  thrown in /home3/rajugda1/sridivyangsevakendram.org/api/login.php on line 7
