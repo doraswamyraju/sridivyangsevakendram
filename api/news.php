@@ -17,17 +17,29 @@ header("Content-Type: application/json; charset=UTF-8");
 include_once 'database.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
-$PROJECT_FOLDER = "sridivyangsevakendram.org"; // Match your folder name
+$PROJECT_FOLDER = "sridivyangsevakendram.org"; 
 
-// 1. GET NEWS
+// 1. GET NEWS (WITH SMART URL FIX)
 if ($method == 'GET') {
     $query = "SELECT * FROM news_updates ORDER BY created_at DESC";
     $stmt = $conn->prepare($query);
     $stmt->execute();
-    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // AUTO-CORRECT URLs: Convert localhost links to Live links on the fly
+    foreach ($results as &$row) {
+        if (!empty($row['image_path'])) {
+            $row['image_path'] = str_replace(
+                ['http://localhost/sridivyangsevakendram.org', 'http://localhost'], 
+                'https://sridivyangsevakendram.org', 
+                $row['image_path']
+            );
+        }
+    }
+    echo json_encode($results);
 }
 
-// 2. POST NEWS (Title, Content, Image)
+// 2. POST NEWS
 if ($method == 'POST') {
     if (isset($_FILES['image']) && isset($_POST['title']) && isset($_POST['content'])) {
         $title = $_POST['title'];
@@ -39,7 +51,12 @@ if ($method == 'POST') {
         $file_ext = pathinfo($_FILES["image"]["name"], PATHINFO_EXTENSION);
         $filename = uniqid() . "_news." . $file_ext;
         $target_file = $target_dir . $filename;
-        $image_url = "http://localhost/{$PROJECT_FOLDER}/uploads/" . $filename;
+        
+        // Dynamic URL Generation
+        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+        $host = $_SERVER['HTTP_HOST'];
+        $path_prefix = ($host === 'localhost') ? "/sridivyangsevakendram.org" : "";
+        $image_url = $protocol . "://" . $host . $path_prefix . "/uploads/" . $filename;
 
         if (move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
             $query = "INSERT INTO news_updates (title, content, image_path) VALUES (?, ?, ?)";
@@ -61,7 +78,6 @@ if ($method == 'POST') {
 if ($method == 'DELETE') {
     $data = json_decode(file_get_contents("php://input"));
     if(isset($data->id)) {
-        // Get image path to delete file
         $stmt = $conn->prepare("SELECT image_path FROM news_updates WHERE id = ?");
         $stmt->execute([$data->id]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
