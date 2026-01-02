@@ -4,7 +4,12 @@ import { API_BASE_URL } from '../config';
 
 const SupportModal = ({ isOpen, onClose, initialTab }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [amount, setAmount] = useState(1000);
+  
+  // --- DONATION STATE ---
+  const [amount, setAmount] = useState(1000); 
+  const [customAmount, setCustomAmount] = useState(''); // New State for Input
+  const [activePreset, setActivePreset] = useState(1000); // New State to track button highlight
+
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null); // 'success' or null
 
@@ -32,6 +37,20 @@ const SupportModal = ({ isOpen, onClose, initialTab }) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // --- NEW HANDLERS FOR CUSTOM AMOUNT ---
+  const handlePresetClick = (val) => {
+    setAmount(val);
+    setActivePreset(val);
+    setCustomAmount(''); // Clear custom input when a button is clicked
+  };
+
+  const handleCustomChange = (e) => {
+    const val = e.target.value;
+    setCustomAmount(val);
+    setAmount(val); // Update donation amount
+    setActivePreset(null); // Remove highlight from buttons
+  };
+
   // --- VOLUNTEER SUBMISSION ---
   const handleVolunteerSubmit = async (e) => {
     e.preventDefault();
@@ -56,6 +75,10 @@ const SupportModal = ({ isOpen, onClose, initialTab }) => {
 
   // --- PAYMENT HANDLING ---
   const handlePayment = async () => {
+    if(!amount || amount < 1) {
+        alert("Please enter a valid donation amount.");
+        return;
+    }
     if(!formData.firstName || !formData.email || !formData.pan) {
       alert("Please fill Name, Email, and PAN for 80G Receipt.");
       return;
@@ -129,9 +152,9 @@ const SupportModal = ({ isOpen, onClose, initialTab }) => {
            <button className={`flex-1 py-4 font-bold text-sm uppercase ${activeTab === 'volunteer' ? 'bg-blue-900 text-white' : 'bg-slate-50 text-slate-500'}`} onClick={() => setActiveTab('volunteer')}>Volunteer</button>
         </div>
 
-        <div className="overflow-y-auto p-8">
+        <div className="overflow-y-auto p-8 custom-scrollbar">
            {status === 'success' ? (
-             // --- DYNAMIC SUCCESS MESSAGE START ---
+             // --- DYNAMIC SUCCESS MESSAGE ---
              <div className="text-center py-10 animate-in fade-in zoom-in duration-300">
                <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${activeTab === 'donate' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
                  {activeTab === 'donate' ? <Check size={40} /> : <HandHeart size={40} />}
@@ -149,34 +172,56 @@ const SupportModal = ({ isOpen, onClose, initialTab }) => {
                  </>
                )}
              </div>
-             // --- DYNAMIC SUCCESS MESSAGE END ---
            ) : (
              activeTab === 'donate' ? (
                <div className="space-y-5">
-                 <div className="grid grid-cols-3 gap-3">
-                   {[500, 1000, 2500, 5000, 10000].map((amt) => (
-                      <button key={amt} onClick={() => setAmount(amt)} className={`py-2 border rounded-lg text-sm font-bold ${amount === amt ? 'bg-amber-50 border-amber-500 text-amber-700' : 'border-slate-200 text-slate-600'}`}>₹{amt.toLocaleString()}</button>
-                   ))}
-                 </div>
                  
+                 {/* --- AMOUNT SELECTION SECTION --- */}
+                 <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Amount</label>
+                    <div className="grid grid-cols-3 gap-3 mb-3">
+                    {[500, 1000, 2500, 5000, 10000].map((amt) => (
+                        <button 
+                            key={amt} 
+                            onClick={() => handlePresetClick(amt)} 
+                            className={`py-2 border rounded-lg text-sm font-bold transition-all ${activePreset === amt ? 'bg-amber-100 border-amber-500 text-amber-700 shadow-sm' : 'border-slate-200 text-slate-600 hover:border-amber-300'}`}
+                        >
+                            ₹{amt.toLocaleString()}
+                        </button>
+                    ))}
+                    </div>
+                    {/* Custom Input */}
+                    <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
+                        <input 
+                            type="number" 
+                            placeholder="Enter other amount" 
+                            value={customAmount}
+                            onChange={handleCustomChange}
+                            className="w-full pl-7 p-3 border rounded-lg text-sm font-bold outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                        />
+                    </div>
+                 </div>
+                 {/* -------------------------------- */}
+
                  <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
-                      <input name="firstName" placeholder="First Name *" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
-                      <input name="lastName" placeholder="Last Name" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
+                      <input name="firstName" placeholder="First Name *" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm outline-none focus:border-amber-500" />
+                      <input name="lastName" placeholder="Last Name" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm outline-none focus:border-amber-500" />
                     </div>
-                    <input name="email" type="email" placeholder="Email Address *" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
-                    <input name="phone" placeholder="Phone Number" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
+                    <input name="email" type="email" placeholder="Email Address *" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm outline-none focus:border-amber-500" />
+                    <input name="phone" placeholder="Phone Number" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm outline-none focus:border-amber-500" />
                     
                     <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                       <div className="flex items-center gap-2 text-blue-800 font-bold text-xs uppercase mb-3">
                         <ShieldCheck size={14} /> Details for 80G Receipt
                       </div>
-                      <input name="pan" placeholder="PAN Number (Mandatory)" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm mb-3 uppercase" />
-                      <textarea name="address" rows="2" placeholder="Billing Address" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm"></textarea>
+                      <input name="pan" placeholder="PAN Number (Mandatory)" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm mb-3 uppercase outline-none focus:border-blue-500 bg-white" />
+                      <textarea name="address" rows="2" placeholder="Billing Address" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm outline-none focus:border-blue-500 bg-white resize-none"></textarea>
                     </div>
 
-                    <button onClick={handlePayment} disabled={loading} className="w-full bg-amber-500 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all">
-                       {loading ? 'Processing...' : `Donate ₹${Number(amount).toLocaleString()}`}
+                    <button onClick={handlePayment} disabled={loading} className="w-full bg-amber-500 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl hover:bg-amber-600 transition-all">
+                       {loading ? 'Processing...' : `Donate ₹${amount ? Number(amount).toLocaleString() : '0'}`}
                     </button>
                     <p className="text-[10px] text-center text-slate-400">Secured by Razorpay</p>
                  </div>
@@ -184,19 +229,19 @@ const SupportModal = ({ isOpen, onClose, initialTab }) => {
              ) : (
                <form onSubmit={handleVolunteerSubmit} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                      <input name="firstName" required placeholder="First Name" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
-                      <input name="lastName" required placeholder="Last Name" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
+                      <input name="firstName" required placeholder="First Name" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm outline-none focus:border-blue-500" />
+                      <input name="lastName" required placeholder="Last Name" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm outline-none focus:border-blue-500" />
                   </div>
-                  <input name="email" required type="email" placeholder="Email Address" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
-                  <input name="phone" required placeholder="Phone Number" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
-                  <select name="interest" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm bg-white text-slate-600">
+                  <input name="email" required type="email" placeholder="Email Address" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm outline-none focus:border-blue-500" />
+                  <input name="phone" required placeholder="Phone Number" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm outline-none focus:border-blue-500" />
+                  <select name="interest" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm bg-white text-slate-600 outline-none focus:border-blue-500">
                      <option>Teaching / Skill Training</option>
                      <option>Elderly Care Support</option>
                      <option>Event Organization</option>
                      <option>Other</option>
                   </select>
-                  <textarea name="message" rows="3" placeholder="Why do you want to join us? (Optional)" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm"></textarea>
-                  <button type="submit" disabled={loading} className="w-full bg-blue-900 text-white font-bold py-4 rounded-xl shadow-lg">{loading ? 'Submitting...' : 'Submit Application'}</button>
+                  <textarea name="message" rows="3" placeholder="Why do you want to join us? (Optional)" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm outline-none focus:border-blue-500"></textarea>
+                  <button type="submit" disabled={loading} className="w-full bg-blue-900 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-800 transition-all">{loading ? 'Submitting...' : 'Submit Application'}</button>
                </form>
              )
            )}
