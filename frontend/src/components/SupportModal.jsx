@@ -1,191 +1,206 @@
-import React, { useState } from 'react';
-import { X, Heart, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Check, ShieldCheck, Heart, HandHeart } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
-const SupportModal = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
-
-  // --- STATE ---
-  const [amount, setAmount] = useState(1000); // Default amount
-  const [customAmount, setCustomAmount] = useState(''); // For the input field
-  const [activePreset, setActivePreset] = useState(1000); // To highlight selected button
-  
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    pan: '',
-    address: ''
-  });
-  
+const SupportModal = ({ isOpen, onClose, initialTab }) => {
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [amount, setAmount] = useState(1000);
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState(null); // 'success' or null
 
-  // --- HANDLERS ---
-  
-  // Handle Preset Button Click
-  const handlePresetClick = (val) => {
-    setAmount(val);
-    setActivePreset(val);
-    setCustomAmount(''); // Clear custom input if a preset is clicked
-  };
+  // Form States
+  const [formData, setFormData] = useState({
+    firstName: '', lastName: '', email: '', phone: '',
+    pan: '', address: '',
+    interest: 'Teaching / Skill Training', message: ''
+  });
 
-  // Handle Custom Amount Typing
-  const handleCustomChange = (e) => {
-    const val = e.target.value;
-    setCustomAmount(val);
-    setAmount(val); // Update the actual donation amount
-    setActivePreset(null); // Remove highlight from preset buttons
-  };
+  useEffect(() => {
+    setActiveTab(initialTab);
+    setStatus(null);
+  }, [initialTab, isOpen]);
 
-  // Handle Form Inputs
-  const handleInputChange = (e) => {
+  // Load Razorpay Script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    document.body.appendChild(script);
+  }, []);
+
+  const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Handle Razorpay Payment
-  const handleDonate = async () => {
-    if (!amount || amount < 1) {
-      alert("Please enter a valid donation amount.");
-      return;
-    }
-    if (!formData.firstName || !formData.email || !formData.phone || !formData.pan) {
-      alert("Please fill in all mandatory fields (Name, Email, Phone, PAN).");
+  // --- VOLUNTEER SUBMISSION ---
+  const handleVolunteerSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/volunteer.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: `${formData.firstName} ${formData.lastName}`,
+          email: formData.email, phone: formData.phone,
+          interest: formData.interest, message: formData.message
+        })
+      });
+      if (response.ok) { 
+        setStatus('success'); 
+        setTimeout(onClose, 4000); // Close after 4 seconds
+      }
+    } catch (error) { alert("Connection error."); } 
+    finally { setLoading(false); }
+  };
+
+  // --- PAYMENT HANDLING ---
+  const handlePayment = async () => {
+    if(!formData.firstName || !formData.email || !formData.pan) {
+      alert("Please fill Name, Email, and PAN for 80G Receipt.");
       return;
     }
 
     setLoading(true);
 
-    try {
-        // 1. Create Order
-        const res = await fetch(`${API_BASE_URL}/donate.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                amount: amount, 
-                ...formData,
-                fullName: `${formData.firstName} ${formData.lastName}` 
-            })
-        });
-        
-        const data = await res.json();
-        if (!data.order_id) throw new Error(data.message || "Order creation failed");
+    const options = {
+      key: "rzp_test_RuKdTFadwm3UGT", // <--- REPLACE WITH YOUR KEY ID
+      amount: amount * 100, 
+      currency: "INR",
+      name: "SSK Trust",
+      description: "Donation for Social Welfare",
+      handler: async function (response) {
+        await saveDonation(response.razorpay_payment_id);
+      },
+      prefill: {
+        name: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        contact: formData.phone
+      },
+      theme: { color: "#1e3a8a" }
+    };
 
-        // 2. Open Razorpay
-        const options = {
-            key: data.key,
-            amount: data.amount,
-            currency: "INR",
-            name: "SSK Trust",
-            description: "Donation",
-            order_id: data.order_id,
-            handler: function (response) {
-                alert("Payment Successful! Payment ID: " + response.razorpay_payment_id);
-                onClose();
-            },
-            prefill: {
-                name: `${formData.firstName} ${formData.lastName}`,
-                email: formData.email,
-                contact: formData.phone
-            },
-            theme: { color: "#F59E0B" }
-        };
-
-        const rzp1 = new window.Razorpay(options);
-        rzp1.open();
-
-    } catch (error) {
-        console.error("Payment Error:", error);
-        alert("Network Error: " + error.message);
-    }
+    const rzp1 = new window.Razorpay(options);
+    rzp1.open();
     setLoading(false);
   };
 
+  const saveDonation = async (txnId) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/donate.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          pan: formData.pan,
+          address: formData.address,
+          amount: amount,
+          transaction_id: txnId
+        })
+      });
+      
+      const result = await response.json();
+      if (result.status === 'success') {
+        setStatus('success');
+      } else {
+        alert("Payment successful, but receipt generation failed. Contact Admin.");
+      }
+    } catch (error) {
+      alert("Network Error saving donation.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]">
+        <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full hover:bg-slate-200 z-20"><X size={20} /></button>
         
-        {/* Header */}
-        <div className="bg-amber-500 p-6 text-white flex justify-between items-center shrink-0">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Heart className="fill-white" /> Make a Donation
-          </h2>
-          <button onClick={onClose} className="hover:bg-amber-600 p-1 rounded-full transition"><X size={24} /></button>
+        {/* TABS */}
+        <div className="flex border-b border-slate-100 shrink-0">
+           <button className={`flex-1 py-4 font-bold text-sm uppercase ${activeTab === 'donate' ? 'bg-amber-500 text-white' : 'bg-slate-50 text-slate-500'}`} onClick={() => setActiveTab('donate')}>Make a Donation</button>
+           <button className={`flex-1 py-4 font-bold text-sm uppercase ${activeTab === 'volunteer' ? 'bg-blue-900 text-white' : 'bg-slate-50 text-slate-500'}`} onClick={() => setActiveTab('volunteer')}>Volunteer</button>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
-          
-          {/* 1. Amount Selection */}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Select Amount</label>
-            
-            {/* Presets Grid */}
-            <div className="grid grid-cols-3 gap-3 mb-3">
-              {[500, 1000, 2500, 5000, 10000].map((val) => (
-                <button
-                  key={val}
-                  onClick={() => handlePresetClick(val)}
-                  className={`py-3 rounded-xl font-bold border transition-all ${
-                    activePreset === val 
-                      ? 'bg-amber-100 border-amber-500 text-amber-700 shadow-sm ring-1 ring-amber-500' 
-                      : 'bg-white border-slate-200 text-slate-600 hover:border-amber-300'
-                  }`}
-                >
-                  ₹{val.toLocaleString()}
-                </button>
-              ))}
-              
-              {/* "Other" Visual Placeholder if needed, or just let the input below do the job */}
-            </div>
-
-            {/* Custom Amount Input */}
-            <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₹</span>
-                <input 
-                    type="number" 
-                    placeholder="Or enter custom amount" 
-                    value={customAmount}
-                    onChange={handleCustomChange}
-                    className="w-full pl-8 pr-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 outline-none font-bold text-slate-700"
-                />
-            </div>
-          </div>
-
-          {/* 2. Personal Details */}
-          <div className="grid grid-cols-2 gap-4">
-            <input name="firstName" placeholder="First Name *" onChange={handleInputChange} className="p-3 border rounded-lg outline-none focus:border-amber-500" />
-            <input name="lastName" placeholder="Last Name" onChange={handleInputChange} className="p-3 border rounded-lg outline-none focus:border-amber-500" />
-          </div>
-          
-          <input name="email" type="email" placeholder="Email Address *" onChange={handleInputChange} className="w-full p-3 border rounded-lg outline-none focus:border-amber-500" />
-          <input name="phone" type="tel" placeholder="Phone Number *" onChange={handleInputChange} className="w-full p-3 border rounded-lg outline-none focus:border-amber-500" />
-
-          {/* 3. 80G Details (Highlighted) */}
-          <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-             <div className="flex items-center gap-2 text-blue-800 font-bold text-xs uppercase mb-2">
-                <ShieldCheck size={14} /> Details for 80G Receipt
+        <div className="overflow-y-auto p-8">
+           {status === 'success' ? (
+             // --- DYNAMIC SUCCESS MESSAGE START ---
+             <div className="text-center py-10 animate-in fade-in zoom-in duration-300">
+               <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${activeTab === 'donate' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
+                 {activeTab === 'donate' ? <Check size={40} /> : <HandHeart size={40} />}
+               </div>
+               
+               {activeTab === 'donate' ? (
+                 <>
+                   <h3 className="text-2xl font-bold text-slate-800">Donation Successful!</h3>
+                   <p className="text-slate-500 mt-2 max-w-xs mx-auto">Thank you for your generosity. Your 80G Receipt has been sent to your email.</p>
+                 </>
+               ) : (
+                 <>
+                   <h3 className="text-2xl font-bold text-slate-800">Application Received!</h3>
+                   <p className="text-slate-500 mt-2 max-w-xs mx-auto">Thank you for stepping forward. Our team will contact you shortly.</p>
+                 </>
+               )}
              </div>
-             <input name="pan" placeholder="PAN NUMBER (MANDATORY)" onChange={handleInputChange} className="w-full p-3 border border-blue-200 rounded-lg outline-none focus:border-blue-500 bg-white mb-3 text-sm" />
-             <textarea name="address" placeholder="Billing Address" onChange={handleInputChange} className="w-full p-3 border border-blue-200 rounded-lg outline-none focus:border-blue-500 bg-white text-sm h-20 resize-none"></textarea>
-          </div>
+             // --- DYNAMIC SUCCESS MESSAGE END ---
+           ) : (
+             activeTab === 'donate' ? (
+               <div className="space-y-5">
+                 <div className="grid grid-cols-3 gap-3">
+                   {[500, 1000, 2500, 5000, 10000].map((amt) => (
+                      <button key={amt} onClick={() => setAmount(amt)} className={`py-2 border rounded-lg text-sm font-bold ${amount === amt ? 'bg-amber-50 border-amber-500 text-amber-700' : 'border-slate-200 text-slate-600'}`}>₹{amt.toLocaleString()}</button>
+                   ))}
+                 </div>
+                 
+                 <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <input name="firstName" placeholder="First Name *" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
+                      <input name="lastName" placeholder="Last Name" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
+                    </div>
+                    <input name="email" type="email" placeholder="Email Address *" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
+                    <input name="phone" placeholder="Phone Number" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
+                    
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                      <div className="flex items-center gap-2 text-blue-800 font-bold text-xs uppercase mb-3">
+                        <ShieldCheck size={14} /> Details for 80G Receipt
+                      </div>
+                      <input name="pan" placeholder="PAN Number (Mandatory)" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm mb-3 uppercase" />
+                      <textarea name="address" rows="2" placeholder="Billing Address" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm"></textarea>
+                    </div>
 
+                    <button onClick={handlePayment} disabled={loading} className="w-full bg-amber-500 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transition-all">
+                       {loading ? 'Processing...' : `Donate ₹${Number(amount).toLocaleString()}`}
+                    </button>
+                    <p className="text-[10px] text-center text-slate-400">Secured by Razorpay</p>
+                 </div>
+               </div>
+             ) : (
+               <form onSubmit={handleVolunteerSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                      <input name="firstName" required placeholder="First Name" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
+                      <input name="lastName" required placeholder="Last Name" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
+                  </div>
+                  <input name="email" required type="email" placeholder="Email Address" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
+                  <input name="phone" required placeholder="Phone Number" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm" />
+                  <select name="interest" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm bg-white text-slate-600">
+                     <option>Teaching / Skill Training</option>
+                     <option>Elderly Care Support</option>
+                     <option>Event Organization</option>
+                     <option>Other</option>
+                  </select>
+                  <textarea name="message" rows="3" placeholder="Why do you want to join us? (Optional)" onChange={handleChange} className="p-3 border rounded-lg w-full text-sm"></textarea>
+                  <button type="submit" disabled={loading} className="w-full bg-blue-900 text-white font-bold py-4 rounded-xl shadow-lg">{loading ? 'Submitting...' : 'Submit Application'}</button>
+               </form>
+             )
+           )}
         </div>
-
-        {/* Footer Action */}
-        <div className="p-6 border-t bg-slate-50 shrink-0">
-          <button 
-            onClick={handleDonate} 
-            disabled={loading}
-            className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
-          >
-            {loading ? "Processing..." : `Donate ₹${amount ? Number(amount).toLocaleString() : '0'}`}
-          </button>
-          <p className="text-center text-xs text-slate-400 mt-3 flex items-center justify-center gap-1">
-            <ShieldCheck size={12} /> Secured by Razorpay
-          </p>
-        </div>
-
       </div>
     </div>
   );
