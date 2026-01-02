@@ -10,6 +10,14 @@ const Header = ({ onOpenDonate }) => {
 
   const handleNavClick = (sectionId) => {
     setIsOpen(false);
+    
+    // Logic for Resources page (External link behavior)
+    if (sectionId === 'resources') {
+        navigate('/resources');
+        return;
+    }
+
+    // Logic for Scrolling on Home Page
     if (location.pathname === '/') {
       const element = document.getElementById(sectionId);
       if (element) element.scrollIntoView({ behavior: 'smooth' });
@@ -25,6 +33,7 @@ const Header = ({ onOpenDonate }) => {
   const navLinks = [
     { name: 'Home', id: 'home' },
     { name: 'Programs', id: 'programs' },
+    { name: 'Resources', id: 'resources' }, // <--- NEW LINK
     { name: 'Stories', id: 'stories' },
     { name: 'Vision 2026', id: 'vision' },
     { name: 'Contact', id: 'contact-us' },
