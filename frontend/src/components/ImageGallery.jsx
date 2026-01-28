@@ -64,7 +64,7 @@ const ImageGallery = ({ images }) => {
               <div
                 key={idx}
                 className="aspect-square relative group cursor-pointer overflow-hidden rounded-xl bg-slate-100 border border-slate-200"
-                onClick={() => setSelectedImage(img.image_path)}
+                onClick={() => setSelectedImage(img)}
               >
                 <img src={img.image_path} alt="" className="w-full h-full object-contain p-2 transition-transform duration-500 group-hover:scale-105" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
@@ -79,7 +79,11 @@ const ImageGallery = ({ images }) => {
         {selectedImage && (
           <div className="fixed inset-0 z-[60] bg-black/95 backdrop-blur flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}>
             <button onClick={() => setSelectedImage(null)} className="absolute top-6 right-6 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-all z-50"><X size={32} /></button>
-            <img src={selectedImage} alt="Full View" className="max-w-full max-h-[90vh] rounded shadow-2xl object-contain animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()} />
+            <img src={selectedImage.image_path} alt="Full View" className="max-w-full max-h-[85vh] rounded shadow-2xl object-contain animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()} />
+            {/* Title Capability */}
+            <div className="absolute bottom-6 left-0 w-full text-center pointer-events-none">
+              <p className="inline-block bg-black/50 text-white px-4 py-2 rounded-full backdrop-blur-md text-sm font-medium">{selectedImage.title || activeAlbum.title}</p>
+            </div>
           </div>
         )}
       </div>
@@ -121,7 +125,7 @@ const ImageGallery = ({ images }) => {
             <div
               key={img.id || index}
               className="min-w-[280px] md:min-w-[350px] h-64 relative flex-shrink-0 snap-center rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 cursor-pointer shadow-sm hover:shadow-md transition-all"
-              onClick={() => setSelectedImage(img.image_path)}
+              onClick={() => setSelectedImage(img)}
             >
               <img
                 src={img.image_path}
@@ -143,7 +147,13 @@ const ImageGallery = ({ images }) => {
       {selectedImage && !activeAlbum && (
         <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setSelectedImage(null)}>
           <button onClick={() => setSelectedImage(null)} className="absolute top-6 right-6 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-all z-50"><X size={32} /></button>
-          <img src={selectedImage} alt="Full View" className="max-w-full max-h-[90vh] rounded-lg shadow-2xl object-contain animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()} />
+          <img src={selectedImage.image_path} alt="Full View" className="max-w-full max-h-[85vh] rounded-lg shadow-2xl object-contain animate-in zoom-in-95 duration-300" onClick={(e) => e.stopPropagation()} />
+          {/* Title Capability */}
+          {selectedImage.title && (
+            <div className="absolute bottom-6 left-0 w-full text-center pointer-events-none">
+              <p className="inline-block bg-black/50 text-white px-4 py-2 rounded-full backdrop-blur-md text-sm font-medium">{selectedImage.title}</p>
+            </div>
+          )}
         </div>
       )}
     </>
