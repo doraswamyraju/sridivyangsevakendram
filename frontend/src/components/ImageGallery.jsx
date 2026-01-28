@@ -63,12 +63,12 @@ const ImageGallery = ({ images }) => {
             {activeAlbum.images.map((img, idx) => (
               <div
                 key={idx}
-                className="aspect-square relative group cursor-pointer overflow-hidden rounded-xl bg-slate-200"
+                className="aspect-square relative group cursor-pointer overflow-hidden rounded-xl bg-slate-100 border border-slate-200"
                 onClick={() => setSelectedImage(img.image_path)}
               >
-                <img src={img.image_path} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                  <ZoomIn className="text-white drop-shadow-md" size={28} />
+                <img src={img.image_path} alt="" className="w-full h-full object-contain p-2 transition-transform duration-500 group-hover:scale-105" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <ZoomIn className="text-slate-700 drop-shadow-md" size={28} />
                 </div>
               </div>
             ))}
@@ -106,10 +106,10 @@ const ImageGallery = ({ images }) => {
                 <Layers size={14} /> {album.images.length}
               </div>
 
-              <img src={album.cover} alt={album.title} className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-105 brightness-90 group-hover/card:brightness-100" />
+              <img src={album.cover} alt={album.title} className="w-full h-full object-contain p-1 transition-transform duration-700 group-hover/card:scale-105" />
 
               {/* Title Overlay */}
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-12">
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/90 via-slate-900/50 to-transparent p-4 pt-12">
                 <h3 className="text-white font-bold text-lg leading-tight line-clamp-2 drop-shadow-md">{album.title}</h3>
                 <p className="text-white/80 text-xs mt-1">View Album</p>
               </div>

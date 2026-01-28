@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, LogOut, Heart, Users, Image as ImageIcon,
   Trash2, Upload, Newspaper, Plus, CheckCircle, Clock, Menu, X,
-  FolderOpen, FileText, Download
+  FolderOpen, FileText, Download, Layers, ArrowLeft
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import logo from '../assets/logo.png';
@@ -21,6 +21,21 @@ const AdminDashboard = () => {
   // Gallery State
   const [selectedProgram, setSelectedProgram] = useState('pwd-empowerment');
   const [galleryImages, setGalleryImages] = useState([]);
+  const [viewingAlbum, setViewingAlbum] = useState(null);
+
+  const groupedGallery = useMemo(() => {
+    const albums = {};
+    const singles = [];
+    galleryImages.forEach(img => {
+      if (img.group_id) {
+        if (!albums[img.group_id]) albums[img.group_id] = { id: img.group_id, title: img.title || 'Untitled', images: [], cover: img.image_path };
+        albums[img.group_id].images.push(img);
+      } else {
+        singles.push(img);
+      }
+    });
+    return { albums, singles };
+  }, [galleryImages]);
 
   // News State
   const [newsList, setNewsList] = useState([]);
@@ -215,10 +230,11 @@ const AdminDashboard = () => {
           {/* GALLERY */}
           {activeTab === 'gallery' && (
             <div className="space-y-6">
+              {/* Upload Form */}
               <div className="bg-white p-4 rounded-2xl shadow-sm flex flex-col md:flex-row items-end gap-4">
                 <div className="flex-1 w-full">
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Select Program</label>
-                  <select className="border p-2 rounded w-full bg-slate-50" value={selectedProgram} onChange={(e) => setSelectedProgram(e.target.value)}>{programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+                  <select className="border p-2 rounded w-full bg-slate-50" value={selectedProgram} onChange={(e) => { setSelectedProgram(e.target.value); setViewingAlbum(null); }}>{programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
                 </div>
                 <div className="flex-1 w-full">
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Event Title (Optional)</label>
@@ -231,7 +247,53 @@ const AdminDashboard = () => {
                   </label>
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">{galleryImages.map(img => <div key={img.id} className="relative group bg-white p-2 rounded shadow h-40 flex items-center justify-center"><img src={img.image_path} className="max-h-full max-w-full rounded" /><button onClick={() => handleDeleteGallery(img.id)} className="absolute top-2 right-2 bg-white text-red-500 p-2 rounded-full shadow opacity-100 md:opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button></div>)}</div>
+
+              {/* Gallery Display */}
+              {viewingAlbum ? (
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 animate-in fade-in">
+                  <div className="flex items-center gap-4 mb-6 border-b pb-4">
+                    <button onClick={() => setViewingAlbum(null)} className="p-2 hover:bg-slate-100 rounded-full"><ArrowLeft size={20} /></button>
+                    <div>
+                      <h3 className="font-bold text-xl text-slate-800">{viewingAlbum.title}</h3>
+                      <p className="text-xs text-slate-500">{viewingAlbum.images.length} Photos</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {viewingAlbum.images.map(img => (
+                      <div key={img.id} className="relative group bg-slate-50 p-2 rounded border hover:shadow-md transition-all">
+                        <img src={img.image_path} className="w-full h-32 object-contain bg-white rounded" />
+                        <button onClick={async () => { await handleDeleteGallery(img.id); setViewingAlbum(prev => ({ ...prev, images: prev.images.filter(i => i.id !== img.id) })); }} className="absolute top-2 right-2 bg-white text-red-500 p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {/* Albums */}
+                  {Object.values(groupedGallery.albums).map(album => (
+                    <div key={album.id} onClick={() => setViewingAlbum(album)} className="cursor-pointer relative group bg-white p-2 rounded-xl shadow border border-slate-100 hover:border-blue-300 transition-all">
+                      <div className="h-40 bg-slate-50 rounded-lg overflow-hidden relative">
+                        <img src={album.cover} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                        <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 backdrop-blur-sm"><Layers size={10} /> {album.images.length}</div>
+                      </div>
+                      <div className="p-2">
+                        <h4 className="font-bold text-sm text-slate-700 truncate">{album.title}</h4>
+                        <p className="text-xs text-slate-400">Album</p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Singles */}
+                  {groupedGallery.singles.map(img => (
+                    <div key={img.id} className="relative group bg-white p-2 rounded-xl shadow border border-slate-100 h-fit">
+                      <div className="h-40 bg-slate-50 rounded-lg overflow-hidden flex items-center justify-center">
+                        <img src={img.image_path} className="max-h-full max-w-full" />
+                      </div>
+                      <button onClick={() => handleDeleteGallery(img.id)} className="absolute top-4 right-4 bg-white text-red-500 p-2 rounded-full shadow opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

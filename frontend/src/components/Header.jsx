@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Menu, X, Heart } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import logo from '../assets/logo.png'; 
+import logo from '../assets/logo.png';
 
 const Header = ({ onOpenDonate }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,11 +10,11 @@ const Header = ({ onOpenDonate }) => {
 
   const handleNavClick = (sectionId) => {
     setIsOpen(false);
-    
+
     // Logic for Resources page (External link behavior)
     if (sectionId === 'resources') {
-        navigate('/resources');
-        return;
+      navigate('/resources');
+      return;
     }
 
     // Logic for Scrolling on Home Page
@@ -30,6 +30,13 @@ const Header = ({ onOpenDonate }) => {
     }
   };
 
+  // --- CLOCK STATE ---
+  const [currentTime, setCurrentTime] = useState(new Date());
+  React.useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Update every minute
+    return () => clearInterval(timer);
+  }, []);
+
   const navLinks = [
     { name: 'Home', id: 'home' },
     { name: 'Programs', id: 'programs' },
@@ -42,13 +49,13 @@ const Header = ({ onOpenDonate }) => {
   return (
     <header className="fixed w-full z-50 bg-white shadow-md py-3">
       <div className="container mx-auto px-6 flex justify-between items-center">
-        
+
         {/* LOGO SECTION */}
         <div onClick={() => handleNavClick('home')} className="flex items-center gap-4 cursor-pointer">
-          <img 
-            src={logo} 
-            alt="SSK Trust Logo" 
-            className="h-20 w-auto object-contain" 
+          <img
+            src={logo}
+            alt="SSK Trust Logo"
+            className="h-20 w-auto object-contain"
           />
           <div className="flex flex-col leading-tight text-blue-900">
             <span className="font-extrabold text-2xl tracking-tight">SSK Trust</span>
@@ -58,6 +65,12 @@ const Header = ({ onOpenDonate }) => {
 
         {/* DESKTOP NAVIGATION */}
         <nav className="hidden md:flex items-center gap-8">
+          {/* Date & Time Display */}
+          <div className="hidden lg:flex flex-col items-end text-right mr-4 text-xs font-bold text-slate-500">
+            <span>{new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            <span className="text-blue-900 text-sm">{new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+
           {navLinks.map((link) => (
             <button
               key={link.name}
@@ -67,7 +80,7 @@ const Header = ({ onOpenDonate }) => {
               {link.name}
             </button>
           ))}
-          <button 
+          <button
             onClick={() => onOpenDonate('donate')}
             className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-full font-bold text-sm transition-all shadow-lg flex items-center gap-2"
           >
@@ -94,7 +107,7 @@ const Header = ({ onOpenDonate }) => {
                 {link.name}
               </button>
             ))}
-            <button 
+            <button
               onClick={() => { setIsOpen(false); onOpenDonate('donate'); }}
               className="bg-amber-500 text-white w-full py-4 rounded-xl font-bold mt-2 flex justify-center gap-2"
             >
