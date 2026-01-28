@@ -10,7 +10,7 @@ import FloatingButtons from '../components/FloatingButtons';
 import ImageGallery from '../components/ImageGallery';
 
 // --- CONFIGURATION ---
-import { API_BASE_URL } from '../config'; 
+import { API_BASE_URL } from '../config';
 
 // --- IMPORT LOCAL HERO IMAGES ---
 import imgPwd from '../assets/pwd.jpeg';
@@ -22,10 +22,10 @@ import imgCommunity from '../assets/community.jpg';
 const ProgramDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  
+
   // State for Modals & Data
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [galleryImages, setGalleryImages] = useState([]); 
+  const [galleryImages, setGalleryImages] = useState([]);
 
   // --- STATIC CONTENT DATABASE ---
   const programData = {
@@ -157,10 +157,10 @@ const ProgramDetails = () => {
   // --- EFFECT 2: FETCH GALLERY IMAGES FROM ADMIN ---
   useEffect(() => {
     if (id) {
-        fetch(`${API_BASE_URL}/gallery.php?program_id=${id}`)
-          .then(res => res.json())
-          .then(data => setGalleryImages(data))
-          .catch(err => console.error("Gallery Fetch Error:", err));
+      fetch(`${API_BASE_URL}/gallery.php?program_id=${id}`)
+        .then(res => res.json())
+        .then(data => setGalleryImages(data))
+        .catch(err => console.error("Gallery Fetch Error:", err));
     }
   }, [id]);
 
@@ -173,88 +173,93 @@ const ProgramDetails = () => {
       <FloatingButtons openModal={() => setIsModalOpen(true)} />
 
       {/* Main Content */}
-      <main className="min-h-screen pt-24 pb-20 bg-slate-50"> 
-        
+      <main className="min-h-screen pt-32 pb-20 bg-slate-50">
+
         {/* HERO IMAGE SECTION */}
         <div className="relative h-96 w-full shadow-lg">
-            <img src={data.image} alt={data.title} className="w-full h-full object-cover brightness-50" />
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white p-6">
-                <div className={`w-16 h-16 ${data.bg} rounded-full flex items-center justify-center mb-4 shadow-lg animate-in zoom-in`}>
-                    <data.icon size={32} className={data.color} />
-                </div>
-                <h1 className="text-4xl md:text-5xl font-extrabold mb-4 drop-shadow-lg">{data.title}</h1>
-                <p className="text-lg md:text-xl text-slate-100 max-w-2xl drop-shadow-md">{data.subtitle}</p>
+          <img src={data.image} alt={data.title} className="w-full h-full object-cover brightness-50" />
+          <div className="absolute top-4 left-4 z-20">
+            <button onClick={() => navigate('/')} className="flex items-center gap-2 text-white/80 hover:text-white bg-black/20 hover:bg-black/40 backdrop-blur-sm px-4 py-2 rounded-full font-bold transition-all">
+              <ArrowLeft size={20} /> Back
+            </button>
+          </div>
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white p-6">
+            <div className={`w-16 h-16 ${data.bg} rounded-full flex items-center justify-center mb-4 shadow-lg animate-in zoom-in`}>
+              <data.icon size={32} className={data.color} />
             </div>
+            <h1 className="text-4xl md:text-5xl font-extrabold mb-4 drop-shadow-lg">{data.title}</h1>
+            <p className="text-lg md:text-xl text-slate-100 max-w-2xl drop-shadow-md">{data.subtitle}</p>
+          </div>
         </div>
 
         {/* CONTENT CONTAINER */}
         <div className="container mx-auto px-6 -mt-16 relative z-10">
-            
-            {/* 1. INFO CARD */}
-            <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 border border-slate-100 mb-12">
-                <button onClick={() => navigate('/')} className="flex items-center gap-2 text-slate-500 hover:text-blue-900 font-bold mb-8 transition-colors">
-                    <ArrowLeft size={20} /> Back to Home
-                </button>
 
-                <div className="grid lg:grid-cols-3 gap-12">
-                    {/* Left: Text & Impact */}
-                    <div className="lg:col-span-2 space-y-8">
-                        <div>
-                            <h2 className="text-2xl font-bold text-blue-950 mb-4">About this Program</h2>
-                            <p className="text-slate-600 leading-relaxed whitespace-pre-line text-lg">
-                                {data.description}
-                            </p>
-                        </div>
+          {/* 1. INFO CARD */}
+          <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12 border border-slate-100 mb-12">
+            <button onClick={() => navigate('/')} className="flex items-center gap-2 text-slate-500 hover:text-blue-900 font-bold mb-8 transition-colors">
+              <ArrowLeft size={20} /> Back to Home
+            </button>
 
-                        <div>
-                            <h3 className="text-xl font-bold text-blue-950 mb-4">Our Impact</h3>
-                            <div className="space-y-4">
-                                {data.impact.map((item, index) => (
-                                    <div key={index} className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                        <CheckCircle className="text-green-500 shrink-0 mt-1" size={20} />
-                                        <span className="text-slate-700 font-medium">{item}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right: Stats & Donate */}
-                    <div className="space-y-6">
-                        <div className="bg-slate-900 text-white p-8 rounded-2xl shadow-lg">
-                            <h3 className="font-bold text-lg mb-6 text-amber-500 uppercase tracking-widest">At a Glance</h3>
-                            <div className="space-y-6">
-                                {data.stats.map((stat, i) => (
-                                    <div key={i}>
-                                        <div className="text-3xl font-bold mb-1">{stat.value}</div>
-                                        <div className="text-slate-400 text-sm uppercase">{stat.label}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="bg-amber-50 p-8 rounded-2xl border border-amber-100 text-center">
-                            <Heart size={40} className="text-amber-500 mx-auto mb-4 fill-current animate-pulse" />
-                            <h3 className="text-xl font-bold text-amber-900 mb-2">Support this Cause</h3>
-                            <p className="text-amber-800/80 mb-6 text-sm">Your help reaches directly to those in need.</p>
-                            <button onClick={() => setIsModalOpen(true)} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl shadow-lg transition-all">
-                                Donate Now
-                            </button>
-                        </div>
-                    </div>
+            <div className="grid lg:grid-cols-3 gap-12">
+              {/* Left: Text & Impact */}
+              <div className="lg:col-span-2 space-y-8">
+                <div>
+                  <h2 className="text-2xl font-bold text-blue-950 mb-4">About this Program</h2>
+                  <p className="text-slate-600 leading-relaxed whitespace-pre-line text-lg">
+                    {data.description}
+                  </p>
                 </div>
+
+                <div>
+                  <h3 className="text-xl font-bold text-blue-950 mb-4">Our Impact</h3>
+                  <div className="space-y-4">
+                    {data.impact.map((item, index) => (
+                      <div key={index} className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                        <CheckCircle className="text-green-500 shrink-0 mt-1" size={20} />
+                        <span className="text-slate-700 font-medium">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Stats & Donate */}
+              <div className="space-y-6">
+                <div className="bg-slate-900 text-white p-8 rounded-2xl shadow-lg">
+                  <h3 className="font-bold text-lg mb-6 text-amber-500 uppercase tracking-widest">At a Glance</h3>
+                  <div className="space-y-6">
+                    {data.stats.map((stat, i) => (
+                      <div key={i}>
+                        <div className="text-3xl font-bold mb-1">{stat.value}</div>
+                        <div className="text-slate-400 text-sm uppercase">{stat.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 p-8 rounded-2xl border border-amber-100 text-center">
+                  <Heart size={40} className="text-amber-500 mx-auto mb-4 fill-current animate-pulse" />
+                  <h3 className="text-xl font-bold text-amber-900 mb-2">Support this Cause</h3>
+                  <p className="text-amber-800/80 mb-6 text-sm">Your help reaches directly to those in need.</p>
+                  <button onClick={() => setIsModalOpen(true)} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl shadow-lg transition-all">
+                    Donate Now
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. DYNAMIC GALLERY SECTION (USING NEW COMPONENT) */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <Camera className="text-blue-900" size={28} />
+              <h2 className="text-2xl font-bold text-blue-900">Recent Activities</h2>
             </div>
 
-            {/* 2. DYNAMIC GALLERY SECTION (USING NEW COMPONENT) */}
-            <div className="space-y-6">
-                <div className="flex items-center gap-3">
-                    <Camera className="text-blue-900" size={28} />
-                    <h2 className="text-2xl font-bold text-blue-900">Recent Activities</h2>
-                </div>
-                
-                {/* Scrollable Gallery & Lightbox */}
-                <ImageGallery images={galleryImages} />
-            </div>
+            {/* Scrollable Gallery & Lightbox */}
+            <ImageGallery images={galleryImages} />
+          </div>
 
         </div>
       </main>
