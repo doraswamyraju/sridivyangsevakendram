@@ -43,35 +43,63 @@ if ($method == 'GET') {
     }
 }
 
-// 2. UPLOAD IMAGE
+// 2. UPLOAD IMAGE (MULTIPLE SUPPORT)
 if ($method == 'POST') {
+    // Check if files are uploaded
     if (isset($_FILES['image']) && isset($_POST['program_id'])) {
         $program_id = $_POST['program_id'];
+        $title = isset($_POST['title']) ? $_POST['title'] : '';
         $target_dir = "../uploads/"; 
         
         if (!file_exists($target_dir)) mkdir($target_dir, 0777, true);
 
-        $file_ext = pathinfo($_FILES["image"]["name"], PATHINFO_EXTENSION);
-        $filename = uniqid() . "." . $file_ext;
-        $target_file = $target_dir . $filename;
-        
+        // Standardize file array structure
+        $files = [];
+        if (is_array($_FILES['image']['name'])) {
+            $count = count($_FILES['image']['name']);
+            for ($i = 0; $i < $count; $i++) {
+                $files[] = [
+                    'name' => $_FILES['image']['name'][$i],
+                    'tmp_name' => $_FILES['image']['tmp_name'][$i],
+                    'error' => $_FILES['image']['error'][$i]
+                ];
+            }
+        } else {
+            $files[] = $_FILES['image'];
+        }
+
+        $uploaded_images = [];
+        $group_id = uniqid('g_'); // Create a unique group ID for this batch
+
         // Dynamic URL Generation
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
         $host = $_SERVER['HTTP_HOST'];
         $path_prefix = ($host === 'localhost') ? "/sridivyangsevakendram.org" : "";
-        $image_url = $protocol . "://" . $host . $path_prefix . "/uploads/" . $filename;
 
-        if (move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
-            $query = "INSERT INTO program_gallery (program_id, image_path) VALUES (?, ?)";
-            $stmt = $conn->prepare($query);
-            if($stmt->execute([$program_id, $image_url])) {
-                echo json_encode(["message" => "Image uploaded", "url" => $image_url, "id" => $conn->lastInsertId()]);
-            } else {
-                http_response_code(500); echo json_encode(["message" => "Database error"]);
+        foreach ($files as $file) {
+            if ($file['error'] !== UPLOAD_ERR_OK) continue;
+
+            $file_ext = pathinfo($file["name"], PATHINFO_EXTENSION);
+            $filename = uniqid() . "." . $file_ext;
+            $target_file = $target_dir . $filename;
+            
+            $image_url = $protocol . "://" . $host . $path_prefix . "/uploads/" . $filename;
+
+            if (move_uploaded_file($file["tmp_name"], $target_file)) {
+                $query = "INSERT INTO program_gallery (program_id, image_path, title, group_id) VALUES (?, ?, ?, ?)";
+                $stmt = $conn->prepare($query);
+                if($stmt->execute([$program_id, $image_url, $title, $group_id])) {
+                    $uploaded_images[] = ["id" => $conn->lastInsertId(), "url" => $image_url];
+                }
             }
-        } else {
-            http_response_code(500); echo json_encode(["message" => "Failed to upload file"]);
         }
+
+        if (count($uploaded_images) > 0) {
+            echo json_encode(["message" => "Images uploaded", "uploaded" => $uploaded_images]);
+        } else {
+            http_response_code(500); echo json_encode(["message" => "Failed to upload files"]);
+        }
+
     } else {
         http_response_code(400); echo json_encode(["message" => "No file selected"]);
     }
@@ -80,6 +108,7 @@ if ($method == 'POST') {
 // 3. DELETE IMAGE
 if ($method == 'DELETE') {
     $data = json_decode(file_get_contents("php://input"));
+    // Support deleting single image by ID or entire group by group_id (optional, for now just simple delete)
     if(isset($data->id)) {
         $stmt_select = $conn->prepare("SELECT image_path FROM program_gallery WHERE id = ?");
         $stmt_select->execute([$data->id]);
