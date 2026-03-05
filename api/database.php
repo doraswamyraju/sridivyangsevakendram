@@ -1,8 +1,8 @@
 <?php
 // LIVE HOSTGATOR CREDENTIALS
 $host = "localhost";
-$db_name = "rajugda1_ssktrust_db"; 
-$username = "rajugda1_adminssk";
+$db_name = "skillsak_ssk_trust"; 
+$username = "skillsak_ssk_trust";
 $password = "BOHPM6139n@"; 
 
 try {
