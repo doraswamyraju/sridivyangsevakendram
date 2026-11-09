@@ -8,18 +8,6 @@ const ImageGallery = ({ images }) => {
   const [activeAlbum, setActiveAlbum] = useState(null);
   const [lightboxIndex, setLightboxIndex] = useState(null);
 
-  // Prevent background scrolling when modal is open
-  useEffect(() => {
-    if (activeAlbum || lightboxIndex !== null) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [activeAlbum, lightboxIndex]);
-
   // Group images into Albums and Singles
   const content = useMemo(() => {
     if (!images || !Array.isArray(images)) return { singles: [], albums: [] };
@@ -67,6 +55,40 @@ const ImageGallery = ({ images }) => {
 
   const activePhoto = lightboxIndex !== null ? currentPhotoList[lightboxIndex] : null;
 
+  // KEYBOARD NAVIGATION & ESCAPE TO CLOSE
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (lightboxIndex !== null) {
+          // If viewing single image in lightbox, close lightbox first
+          setLightboxIndex(null);
+        } else if (activeAlbum) {
+          // If viewing album, close album and return to program page
+          setActiveAlbum(null);
+        }
+      } else if (e.key === 'ArrowLeft' && lightboxIndex !== null) {
+        setLightboxIndex(prev => (prev > 0 ? prev - 1 : currentPhotoList.length - 1));
+      } else if (e.key === 'ArrowRight' && lightboxIndex !== null) {
+        setLightboxIndex(prev => (prev < currentPhotoList.length - 1 ? prev + 1 : 0));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxIndex, activeAlbum, currentPhotoList.length]);
+
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    if (activeAlbum || lightboxIndex !== null) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [activeAlbum, lightboxIndex]);
+
   const handlePrevPhoto = (e) => {
     e?.stopPropagation();
     if (lightboxIndex > 0) setLightboxIndex(lightboxIndex - 1);
@@ -89,62 +111,66 @@ const ImageGallery = ({ images }) => {
     );
   }
 
-  // --- FULLSCREEN ALBUM MODAL ---
+  // --- FULLSCREEN ALBUM MODAL (HIGHEST Z-INDEX) ---
   if (activeAlbum) {
     return (
       <div
-        className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex flex-col justify-end md:justify-center p-0 md:p-6 animate-in fade-in duration-200"
+        className="fixed inset-0 z-[99999] bg-slate-950/80 backdrop-blur-md flex flex-col justify-center items-center p-2 sm:p-4 md:p-6 animate-in fade-in duration-200"
         onClick={() => setActiveAlbum(null)}
       >
         <div
-          className="bg-slate-50 w-full h-[95vh] md:h-[90vh] md:max-w-6xl md:mx-auto rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200"
+          className="bg-white w-full h-[92vh] max-w-6xl rounded-2xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-slate-200"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Top Header Bar */}
-          <div className="bg-gradient-to-r from-blue-950 via-blue-900 to-slate-900 text-white px-5 py-4 md:px-8 flex items-center justify-between shadow-md shrink-0">
+          <div className="bg-slate-900 text-white px-4 py-3.5 md:px-8 flex items-center justify-between border-b border-slate-800 shrink-0">
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); setActiveAlbum(null); }}
-                className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white px-4 py-2 rounded-full text-xs md:text-sm font-bold backdrop-blur-md transition-all shadow-sm cursor-pointer"
+                onClick={() => setActiveAlbum(null)}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs md:text-sm font-bold shadow transition-all cursor-pointer"
               >
                 <ArrowLeft size={16} /> Back to Program
               </button>
-              <span className="text-blue-300 text-xs hidden sm:inline">|</span>
-              <span className="text-xs text-blue-200 hidden sm:inline flex items-center gap-1">
-                <Layers size={13} /> {activeAlbum.images.length} Photos
+              <span className="text-slate-400 text-xs hidden sm:inline">•</span>
+              <span className="text-xs text-slate-300 hidden sm:inline flex items-center gap-1.5 font-medium">
+                <Layers size={14} className="text-blue-400" /> {activeAlbum.images.length} Photos in this Album
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setActiveAlbum(null); }}
-              className="p-2 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition-all cursor-pointer"
-              title="Close Album"
-            >
-              <X size={22} />
-            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400 text-[11px] hidden md:inline">Press ESC to exit</span>
+              <button
+                type="button"
+                onClick={() => setActiveAlbum(null)}
+                className="bg-slate-800 hover:bg-red-600 text-white p-2 md:px-3 md:py-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer"
+                title="Close (Esc)"
+              >
+                <X size={18} />
+                <span className="hidden sm:inline">Close</span>
+              </button>
+            </div>
           </div>
 
           {/* Scrollable Body */}
-          <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-6">
+          <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 bg-slate-50">
 
             {/* Event Story Card */}
             <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-100">
               <div className="flex flex-wrap items-center gap-3 text-xs font-semibold mb-3">
                 {activeAlbum.event_date && (
-                  <span className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1 rounded-full">
+                  <span className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1 rounded-full border border-blue-100">
                     <Calendar size={13} /> {new Date(activeAlbum.event_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
                   </span>
                 )}
                 {activeAlbum.venue && (
-                  <span className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-1 rounded-full">
+                  <span className="flex items-center gap-1.5 bg-amber-50 text-amber-800 px-3 py-1 rounded-full border border-amber-200">
                     <MapPin size={13} /> {activeAlbum.venue}
                   </span>
                 )}
               </div>
 
-              <h2 className="text-2xl md:text-3xl font-extrabold text-slate-800 leading-tight">
+              <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 leading-tight">
                 {activeAlbum.title}
               </h2>
 
@@ -158,13 +184,13 @@ const ImageGallery = ({ images }) => {
               )}
             </div>
 
-            {/* Photos Header */}
+            {/* Photos Grid Header */}
             <div className="flex items-center justify-between pt-2">
               <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
                 <Camera size={20} className="text-blue-600" />
                 Event Photos ({activeAlbum.images.length})
               </h3>
-              <span className="text-xs text-slate-400">Click any photo to view full size</span>
+              <span className="text-xs text-slate-400">Click any photo to enlarge</span>
             </div>
 
             {/* Photos Grid */}
@@ -172,8 +198,8 @@ const ImageGallery = ({ images }) => {
               {activeAlbum.images.map((img, idx) => (
                 <div
                   key={img.id || idx}
-                  onClick={(e) => { e.stopPropagation(); setLightboxIndex(idx); }}
-                  className="group relative aspect-[4/3] rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300"
+                  onClick={() => setLightboxIndex(idx)}
+                  className="group relative aspect-[4/3] rounded-2xl overflow-hidden bg-white border border-slate-200 cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300"
                 >
                   <img
                     src={img.image_path}
@@ -183,13 +209,13 @@ const ImageGallery = ({ images }) => {
                   />
 
                   {img.is_featured == 1 && (
-                    <div className="absolute top-2.5 left-2.5 bg-amber-500/95 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1 backdrop-blur-sm">
+                    <div className="absolute top-2.5 left-2.5 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow flex items-center gap-1">
                       <Sparkles size={10} /> Featured
                     </div>
                   )}
 
-                  <div className="absolute inset-0 bg-blue-950/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <div className="bg-white/90 text-slate-900 rounded-full p-2.5 shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
+                  <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="bg-white text-slate-900 rounded-full p-2.5 shadow-lg transform scale-90 group-hover:scale-100 transition-transform">
                       <ZoomIn size={20} />
                     </div>
                   </div>
@@ -200,44 +226,49 @@ const ImageGallery = ({ images }) => {
           </div>
         </div>
 
-        {/* --- LIGHTBOX MODAL --- */}
+        {/* --- LIGHTBOX (IMAGE FULLSCREEN VIEW) --- */}
         {lightboxIndex !== null && activePhoto && (
           <div
-            className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 md:p-6 animate-in fade-in duration-150"
-            onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }}
+            className="fixed inset-0 z-[100000] bg-black/95 backdrop-blur-md flex flex-col justify-between p-3 md:p-6 animate-in fade-in duration-150"
+            onClick={() => setLightboxIndex(null)}
           >
-            {/* Lightbox Topbar */}
-            <div className="flex items-center justify-between text-white z-10 px-2" onClick={e => e.stopPropagation()}>
+            {/* Topbar: Explicit Back to Album & Close */}
+            <div className="flex items-center justify-between text-white px-2 py-1 shrink-0 z-20" onClick={e => e.stopPropagation()}>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }}
-                  className="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md transition-all cursor-pointer"
+                  onClick={() => setLightboxIndex(null)}
+                  className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-xl text-xs md:text-sm font-bold backdrop-blur-md transition-all cursor-pointer shadow"
                 >
-                  <ArrowLeft size={14} /> Back to Album
+                  <ArrowLeft size={16} /> Back to Album
                 </button>
                 <span className="text-xs text-white/70 hidden sm:inline">
-                  Photo {lightboxIndex + 1} of {currentPhotoList.length}
+                  {lightboxIndex + 1} of {currentPhotoList.length}
                 </span>
               </div>
 
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }}
-                className="p-2 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition-all cursor-pointer"
-              >
-                <X size={24} />
-              </button>
+              <div className="flex items-center gap-3">
+                <span className="text-white/50 text-[11px] hidden sm:inline">ESC to close</span>
+                <button
+                  type="button"
+                  onClick={() => setLightboxIndex(null)}
+                  className="bg-red-600/80 hover:bg-red-600 text-white p-2 md:px-3 md:py-2 rounded-xl text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shadow"
+                  title="Close Image (Esc)"
+                >
+                  <X size={18} />
+                  <span className="hidden sm:inline">Close</span>
+                </button>
+              </div>
             </div>
 
-            {/* Image & Navigation */}
+            {/* Image & Next/Prev Controls */}
             <div className="relative flex-1 flex items-center justify-center p-2" onClick={e => e.stopPropagation()}>
               {currentPhotoList.length > 1 && (
                 <button
                   type="button"
                   onClick={handlePrevPhoto}
-                  className="absolute left-2 md:left-6 z-20 p-3 rounded-full bg-white/15 hover:bg-white/30 text-white backdrop-blur-md transition-all shadow-xl cursor-pointer"
-                  title="Previous"
+                  className="absolute left-2 md:left-6 z-20 p-3 md:p-4 rounded-full bg-black/60 hover:bg-black/90 text-white border border-white/20 backdrop-blur-md transition-all shadow-2xl cursor-pointer"
+                  title="Previous (Left Arrow)"
                 >
                   <ChevronLeft size={28} />
                 </button>
@@ -246,24 +277,24 @@ const ImageGallery = ({ images }) => {
               <img
                 src={activePhoto.image_path}
                 alt=""
-                className="max-w-full max-h-[78vh] rounded-xl object-contain shadow-2xl animate-in zoom-in-95 duration-200"
+                className="max-w-full max-h-[80vh] rounded-2xl object-contain shadow-2xl animate-in zoom-in-95 duration-200"
               />
 
               {currentPhotoList.length > 1 && (
                 <button
                   type="button"
                   onClick={handleNextPhoto}
-                  className="absolute right-2 md:right-6 z-20 p-3 rounded-full bg-white/15 hover:bg-white/30 text-white backdrop-blur-md transition-all shadow-xl cursor-pointer"
-                  title="Next"
+                  className="absolute right-2 md:right-6 z-20 p-3 md:p-4 rounded-full bg-black/60 hover:bg-black/90 text-white border border-white/20 backdrop-blur-md transition-all shadow-2xl cursor-pointer"
+                  title="Next (Right Arrow)"
                 >
                   <ChevronRight size={28} />
                 </button>
               )}
             </div>
 
-            {/* Bottom Caption */}
+            {/* Bottom Info */}
             <div className="text-center text-white/70 text-xs py-2 pointer-events-none">
-              {activeAlbum.title} • {lightboxIndex + 1} / {currentPhotoList.length}
+              {activeAlbum ? activeAlbum.title : 'Photo'} • {lightboxIndex + 1} / {currentPhotoList.length}
             </div>
           </div>
         )}
@@ -356,7 +387,7 @@ const ImageGallery = ({ images }) => {
       {/* Lightbox for Singles */}
       {lightboxIndex !== null && !activeAlbum && activePhoto && (
         <div
-          className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 animate-in fade-in"
+          className="fixed inset-0 z-[100000] bg-black/95 backdrop-blur-md flex flex-col justify-between p-4 animate-in fade-in"
           onClick={() => setLightboxIndex(null)}
         >
           <div className="flex justify-end p-2">
