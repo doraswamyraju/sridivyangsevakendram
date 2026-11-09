@@ -57,32 +57,40 @@ if ($method === 'GET') {
         exit();
     }
 
-    $query = "
-        SELECT a.id, a.program_id, a.title, a.description, a.event_date, a.venue, a.featured_image_id, a.created_at,
-               COALESCE(feat.image_path, latest.image_path) AS cover,
-               COUNT(gi.id) AS photo_count
-        FROM gallery_albums a
-        LEFT JOIN gallery_images feat ON feat.album_id = a.id AND feat.is_featured = 1
-        LEFT JOIN gallery_images latest ON latest.id = (
-            SELECT id FROM gallery_images WHERE album_id = a.id ORDER BY id DESC LIMIT 1
-        )
-        LEFT JOIN gallery_images gi ON gi.album_id = a.id
-        WHERE a.program_id = ?
-        GROUP BY a.id
-        ORDER BY a.event_date DESC, a.id DESC
-    ";
+    // Clean MySQL 8 query without GROUP BY issues
+    $query = "SELECT id, program_id, title, description, event_date, venue, featured_image_id, created_at 
+              FROM gallery_albums 
+              WHERE program_id = ? 
+              ORDER BY COALESCE(event_date, created_at) DESC, id DESC";
 
     $stmt = $conn->prepare($query);
     $stmt->execute([$program_id]);
     $albums = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Fetch images for each album so frontend has full data immediately
+    // Fetch images and cover for each album
     foreach ($albums as &$alb) {
         $img_stmt = $conn->prepare("SELECT id, image_path, is_featured, created_at FROM gallery_images WHERE album_id = ? ORDER BY is_featured DESC, id DESC");
         $img_stmt->execute([$alb['id']]);
-        $alb['images'] = $img_stmt->fetchAll(PDO::FETCH_ASSOC);
-        $alb['group_id'] = $alb['id'];
-        $alb['image_path'] = $alb['cover'];
+        $images = $img_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $alb['images'] = $images;
+        $alb['photo_count'] = count($images);
+
+        // Find cover: either featured or first image
+        $cover = null;
+        foreach ($images as $img) {
+            if ($img['is_featured'] == 1) {
+                $cover = $img['image_path'];
+                break;
+            }
+        }
+        if (!$cover && count($images) > 0) {
+            $cover = $images[0]['image_path'];
+        }
+
+        $alb['cover'] = $cover;
+        $alb['image_path'] = $cover;
+        $alb['group_id'] = (string)$alb['id'];
     }
 
     echo json_encode($albums);
@@ -104,7 +112,6 @@ if ($method === 'POST') {
         exit();
     }
 
-    // Support both $_FILES['images'] and $_FILES['image']
     $files_key = isset($_FILES['images']) ? 'images' : (isset($_FILES['image']) ? 'image' : null);
 
     if (!$files_key || empty($_FILES[$files_key]['name'])) {
