@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, LogOut, Heart, Users, Image as ImageIcon,
   Trash2, Upload, Newspaper, Plus, CheckCircle, Clock, Menu, X,
-  FolderOpen, FileText, Download, Layers, ArrowLeft
+  FolderOpen, FileText, Download, Layers, ArrowLeft, Calendar, MapPin, Star, Eye
 } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 import logo from '../assets/logo.png';
@@ -20,22 +20,18 @@ const AdminDashboard = () => {
 
   // Gallery State
   const [selectedProgram, setSelectedProgram] = useState('pwd-empowerment');
-  const [galleryImages, setGalleryImages] = useState([]);
+  const [galleryAlbums, setGalleryAlbums] = useState([]);
   const [viewingAlbum, setViewingAlbum] = useState(null);
-
-  const groupedGallery = useMemo(() => {
-    const albums = {};
-    const singles = [];
-    galleryImages.forEach(img => {
-      if (img.group_id) {
-        if (!albums[img.group_id]) albums[img.group_id] = { id: img.group_id, title: img.title || 'Untitled', images: [], cover: img.image_path };
-        albums[img.group_id].images.push(img);
-      } else {
-        singles.push(img);
-      }
-    });
-    return { albums, singles };
-  }, [galleryImages]);
+  const [isCreateAlbumOpen, setIsCreateAlbumOpen] = useState(false);
+  const [galleryForm, setGalleryForm] = useState({
+    title: '',
+    description: '',
+    event_date: '',
+    venue: '',
+    files: [],
+    previews: [],
+    featuredIndex: 0
+  });
 
   // News State
   const [newsList, setNewsList] = useState([]);
@@ -94,7 +90,16 @@ const AdminDashboard = () => {
     } catch (error) { console.error("Error loading data", error); }
   };
 
-  const fetchGallery = async () => { try { const res = await fetch(`${API_BASE_URL}/gallery.php?program_id=${selectedProgram}`); setGalleryImages(await res.json()); } catch (e) { } };
+  const fetchGallery = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/gallery.php?program_id=${selectedProgram}`);
+      const data = await res.json();
+      setGalleryAlbums(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("Error fetching gallery", e);
+    }
+  };
+
   const fetchNews = async () => { try { const res = await fetch(`${API_BASE_URL}/news.php`); setNewsList(await res.json()); } catch (e) { } };
   const fetchResources = async () => { try { const res = await fetch(`${API_BASE_URL}/resources.php`); setResourceList(await res.json()); } catch (e) { } };
 
@@ -128,34 +133,128 @@ const AdminDashboard = () => {
     fetchResources();
   };
 
-  // Gallery
-  const handleUploadGallery = async (e) => {
-    e.preventDefault();
-    // Files
-    const files = document.getElementById('gallery_files').files;
-    if (!files || files.length === 0) return;
+  // Gallery: File selection & preview
+  const handlePhotoSelection = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    if (selectedFiles.length === 0) return;
+    const previews = selectedFiles.map(file => URL.createObjectURL(file));
+    setGalleryForm(prev => ({
+      ...prev,
+      files: selectedFiles,
+      previews: previews,
+      featuredIndex: 0
+    }));
+  };
 
-    // Title
-    const title = document.getElementById('gallery_title').value;
+  // Gallery: Submit new Album
+  const handleCreateAlbum = async (e) => {
+    e.preventDefault();
+    if (!galleryForm.title.trim()) { alert("Please enter an event / program title"); return; }
+    if (!galleryForm.description.trim()) { alert("Please enter a program description"); return; }
+    if (galleryForm.files.length === 0) { alert("Please select at least one photo"); return; }
 
     const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append('image[]', files[i]);
-    }
     formData.append('program_id', selectedProgram);
-    if (title) formData.append('title', title);
+    formData.append('title', galleryForm.title.trim());
+    formData.append('description', galleryForm.description.trim());
+    if (galleryForm.event_date) formData.append('event_date', galleryForm.event_date);
+    if (galleryForm.venue.trim()) formData.append('venue', galleryForm.venue.trim());
+    formData.append('featured_index', galleryForm.featuredIndex);
+
+    for (let i = 0; i < galleryForm.files.length; i++) {
+      formData.append('images[]', galleryForm.files[i]);
+    }
 
     setUploading(true);
-    await fetch(`${API_BASE_URL}/gallery.php`, { method: 'POST', body: formData });
-
-    // Reset form
-    document.getElementById('gallery_files').value = "";
-    document.getElementById('gallery_title').value = "";
-
-    fetchGallery();
+    try {
+      const res = await fetch(`${API_BASE_URL}/gallery.php`, { method: 'POST', body: formData });
+      const result = await res.json();
+      if (res.ok) {
+        alert("Program Album created successfully!");
+        setGalleryForm({
+          title: '',
+          description: '',
+          event_date: '',
+          venue: '',
+          files: [],
+          previews: [],
+          featuredIndex: 0
+        });
+        setIsCreateAlbumOpen(false);
+        fetchGallery();
+      } else {
+        alert(result.message || "Failed to create album");
+      }
+    } catch (err) {
+      alert("Error uploading photos");
+    }
     setUploading(false);
   };
-  const handleDeleteGallery = async (id) => { if (window.confirm("Delete?")) { await fetch(`${API_BASE_URL}/gallery.php`, { method: 'DELETE', body: JSON.stringify({ id }) }); fetchGallery(); } };
+
+  // Gallery: Delete Album
+  const handleDeleteAlbum = async (albumId) => {
+    if (!window.confirm("Are you sure you want to delete this entire album and all its photos?")) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/gallery.php`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ album_id: albumId })
+      });
+      if (res.ok) {
+        if (viewingAlbum && viewingAlbum.id === albumId) setViewingAlbum(null);
+        fetchGallery();
+      } else {
+        alert("Failed to delete album");
+      }
+    } catch (err) {
+      alert("Error deleting album");
+    }
+  };
+
+  // Gallery: Delete single photo
+  const handleDeletePhoto = async (imageId, albumId) => {
+    if (!window.confirm("Delete this photo?")) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/gallery.php`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_id: imageId })
+      });
+      if (res.ok) {
+        if (viewingAlbum) {
+          const updatedImages = viewingAlbum.images.filter(i => i.id !== imageId);
+          setViewingAlbum({ ...viewingAlbum, images: updatedImages });
+        }
+        fetchGallery();
+      }
+    } catch (err) {
+      alert("Error deleting photo");
+    }
+  };
+
+  // Gallery: Set photo as featured
+  const handleSetFeatured = async (albumId, imageId) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/gallery.php`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'set_featured', album_id: albumId, image_id: imageId })
+      });
+      if (res.ok) {
+        if (viewingAlbum) {
+          const updatedImages = viewingAlbum.images.map(img => ({
+            ...img,
+            is_featured: img.id === imageId ? 1 : 0
+          }));
+          const newCover = viewingAlbum.images.find(img => img.id === imageId)?.image_path || viewingAlbum.cover;
+          setViewingAlbum({ ...viewingAlbum, images: updatedImages, cover: newCover });
+        }
+        fetchGallery();
+      }
+    } catch (err) {
+      alert("Error updating featured image");
+    }
+  };
 
   // News
   const handlePostNews = async (e) => { e.preventDefault(); const formData = new FormData(); formData.append('title', newsForm.title); formData.append('content', newsForm.content); formData.append('image', newsForm.image); setUploading(true); await fetch(`${API_BASE_URL}/news.php`, { method: 'POST', body: formData }); fetchNews(); setUploading(false); };
@@ -230,68 +329,319 @@ const AdminDashboard = () => {
           {/* GALLERY */}
           {activeTab === 'gallery' && (
             <div className="space-y-6">
-              {/* Upload Form */}
-              <div className="bg-white p-4 rounded-2xl shadow-sm flex flex-col md:flex-row items-end gap-4">
-                <div className="flex-1 w-full">
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Select Program</label>
-                  <select className="border p-2 rounded w-full bg-slate-50" value={selectedProgram} onChange={(e) => { setSelectedProgram(e.target.value); setViewingAlbum(null); }}>{programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+              {/* Program Selector & Add Album Header */}
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex-1 w-full md:max-w-md">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Program Category</label>
+                  <select
+                    className="border border-slate-200 p-2.5 rounded-xl w-full bg-slate-50 font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={selectedProgram}
+                    onChange={(e) => { setSelectedProgram(e.target.value); setViewingAlbum(null); }}
+                  >
+                    {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
                 </div>
-                <div className="flex-1 w-full">
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Event Title (Optional)</label>
-                  <input id="gallery_title" type="text" className="border p-2 rounded w-full" placeholder="e.g. Independence Day 2024" />
-                </div>
-                <div className="w-full md:w-auto">
-                  <label className="bg-blue-600 text-white px-6 py-2 rounded cursor-pointer block text-center truncate">
-                    {uploading ? "Uploading..." : "Select Photos"}
-                    <input id="gallery_files" type="file" className="hidden" accept="image/*" multiple onChange={handleUploadGallery} disabled={uploading} />
-                  </label>
-                </div>
+
+                <button
+                  onClick={() => setIsCreateAlbumOpen(!isCreateAlbumOpen)}
+                  className="w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl shadow-sm transition-all"
+                >
+                  {isCreateAlbumOpen ? <X size={18} /> : <Plus size={18} />}
+                  {isCreateAlbumOpen ? "Cancel" : "Add Program Album"}
+                </button>
               </div>
 
-              {/* Gallery Display */}
+              {/* Redesigned Album Creation Card */}
+              {isCreateAlbumOpen && (
+                <div className="bg-white p-6 rounded-2xl shadow-md border border-blue-100 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <Plus className="text-blue-600" size={20} />
+                    Create New Program Album
+                  </h3>
+
+                  <form onSubmit={handleCreateAlbum} className="space-y-4">
+                    {/* 1. Title */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                        Program / Event Title <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="e.g. Annual Wheelchair Distribution Drive 2026"
+                        value={galleryForm.title}
+                        onChange={(e) => setGalleryForm({ ...galleryForm, title: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    {/* 2. Description */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                        Program Description <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        rows={3}
+                        className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="Describe the event, beneficiaries, goals, and key moments..."
+                        value={galleryForm.description}
+                        onChange={(e) => setGalleryForm({ ...galleryForm, description: e.target.value })}
+                        required
+                      ></textarea>
+                    </div>
+
+                    {/* 4. Date & Venue (Optional) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1">
+                          <Calendar size={14} /> Program Date <span className="text-slate-400 font-normal">(Optional)</span>
+                        </label>
+                        <input
+                          type="date"
+                          className="w-full border border-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50"
+                          value={galleryForm.event_date}
+                          onChange={(e) => setGalleryForm({ ...galleryForm, event_date: e.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1">
+                          <MapPin size={14} /> Venue <span className="text-slate-400 font-normal">(Optional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="w-full border border-slate-200 rounded-xl p-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
+                          placeholder="e.g. SSK Auditorium, Tirupati"
+                          value={galleryForm.venue}
+                          onChange={(e) => setGalleryForm({ ...galleryForm, venue: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Photo Picker */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                        Select Photos <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        id="new_gallery_files"
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handlePhotoSelection}
+                        className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* 3. Featured Image Selection from Selected Photos */}
+                    {galleryForm.previews.length > 0 && (
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs font-bold text-slate-700 uppercase flex items-center gap-1">
+                            <Star size={14} className="text-amber-500 fill-amber-500" />
+                            Click a photo to set as Featured Cover
+                          </p>
+                          <span className="text-xs text-slate-500">{galleryForm.previews.length} photos selected</span>
+                        </div>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                          {galleryForm.previews.map((previewUrl, idx) => (
+                            <div
+                              key={idx}
+                              onClick={() => setGalleryForm({ ...galleryForm, featuredIndex: idx })}
+                              className={`relative aspect-square rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${galleryForm.featuredIndex === idx ? 'border-amber-500 ring-2 ring-amber-400 scale-105 shadow-md' : 'border-slate-200 opacity-80 hover:opacity-100'}`}
+                            >
+                              <img src={previewUrl} alt="" className="w-full h-full object-cover" />
+                              {galleryForm.featuredIndex === idx && (
+                                <div className="absolute top-1 right-1 bg-amber-500 text-white rounded-full p-1 shadow">
+                                  <Star size={12} className="fill-white" />
+                                </div>
+                              )}
+                              <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] px-1 rounded">
+                                {galleryForm.featuredIndex === idx ? "Featured" : `#${idx + 1}`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-end gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsCreateAlbumOpen(false)}
+                        className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={uploading}
+                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl shadow transition-all disabled:opacity-50"
+                      >
+                        <Upload size={18} />
+                        {uploading ? "Uploading Album..." : "Create Album"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Inside Album Photos View */}
               {viewingAlbum ? (
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 animate-in fade-in">
-                  <div className="flex items-center gap-4 mb-6 border-b pb-4">
-                    <button onClick={() => setViewingAlbum(null)} className="p-2 hover:bg-slate-100 rounded-full"><ArrowLeft size={20} /></button>
-                    <div>
-                      <h3 className="font-bold text-xl text-slate-800">{viewingAlbum.title}</h3>
-                      <p className="text-xs text-slate-500">{viewingAlbum.images.length} Photos</p>
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 border-b pb-4">
+                    <div className="flex items-start gap-4">
+                      <button onClick={() => setViewingAlbum(null)} className="p-2.5 hover:bg-slate-100 rounded-full transition-colors mt-1">
+                        <ArrowLeft size={20} className="text-slate-700" />
+                      </button>
+                      <div>
+                        <h3 className="font-bold text-xl text-slate-800">{viewingAlbum.title}</h3>
+                        <p className="text-sm text-slate-600 mt-1 max-w-2xl">{viewingAlbum.description}</p>
+                        <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-500 font-medium">
+                          {viewingAlbum.event_date && (
+                            <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded">
+                              <Calendar size={12} /> {new Date(viewingAlbum.event_date).toLocaleDateString()}
+                            </span>
+                          )}
+                          {viewingAlbum.venue && (
+                            <span className="flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded">
+                              <MapPin size={12} /> {viewingAlbum.venue}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+                            <Layers size={12} /> {viewingAlbum.images?.length || 0} Photos
+                          </span>
+                        </div>
+                      </div>
                     </div>
+
+                    <button
+                      onClick={() => handleDeleteAlbum(viewingAlbum.id)}
+                      className="flex items-center gap-2 text-red-600 hover:bg-red-50 border border-red-200 px-4 py-2 rounded-xl text-sm font-semibold transition-all self-start md:self-center"
+                    >
+                      <Trash2 size={16} /> Delete Entire Album
+                    </button>
                   </div>
+
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                    {viewingAlbum.images.map(img => (
-                      <div key={img.id} className="relative group bg-slate-50 p-2 rounded border hover:shadow-md transition-all">
-                        <img src={img.image_path} className="w-full h-32 object-contain bg-white rounded" />
-                        <button onClick={async () => { await handleDeleteGallery(img.id); setViewingAlbum(prev => ({ ...prev, images: prev.images.filter(i => i.id !== img.id) })); }} className="absolute top-2 right-2 bg-white text-red-500 p-1.5 rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
+                    {viewingAlbum.images?.map(img => (
+                      <div key={img.id} className="relative group bg-slate-50 p-2 rounded-xl border border-slate-200 hover:shadow-md transition-all">
+                        <img src={img.image_path} alt="" className="w-full h-36 object-contain bg-white rounded-lg" />
+
+                        {img.is_featured == 1 && (
+                          <div className="absolute top-3 left-3 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
+                            <Star size={10} className="fill-white" /> Featured
+                          </div>
+                        )}
+
+                        <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {img.is_featured != 1 && (
+                            <button
+                              title="Set as Featured Cover"
+                              onClick={() => handleSetFeatured(viewingAlbum.id, img.id)}
+                              className="bg-white text-amber-500 hover:bg-amber-50 p-1.5 rounded-full shadow"
+                            >
+                              <Star size={14} />
+                            </button>
+                          )}
+                          <button
+                            title="Delete Photo"
+                            onClick={() => handleDeletePhoto(img.id, viewingAlbum.id)}
+                            className="bg-white text-red-500 hover:bg-red-50 p-1.5 rounded-full shadow"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {/* Albums */}
-                  {Object.values(groupedGallery.albums).map(album => (
-                    <div key={album.id} onClick={() => setViewingAlbum(album)} className="cursor-pointer relative group bg-white p-2 rounded-xl shadow border border-slate-100 hover:border-blue-300 transition-all">
-                      <div className="h-40 bg-slate-50 rounded-lg overflow-hidden relative">
-                        <img src={album.cover} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                        <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 backdrop-blur-sm"><Layers size={10} /> {album.images.length}</div>
-                      </div>
-                      <div className="p-2">
-                        <h4 className="font-bold text-sm text-slate-700 truncate">{album.title}</h4>
-                        <p className="text-xs text-slate-400">Album</p>
-                      </div>
+                /* Albums Grid */
+                <div>
+                  {galleryAlbums.length === 0 ? (
+                    <div className="bg-white p-12 text-center rounded-2xl border border-slate-200 border-dashed">
+                      <ImageIcon className="mx-auto text-slate-300 mb-3" size={48} />
+                      <h4 className="font-bold text-slate-700 text-lg">No albums in this category yet</h4>
+                      <p className="text-slate-400 text-sm mt-1">Click "Add Program Album" above to upload your first event photos.</p>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {galleryAlbums.map(album => (
+                        <div
+                          key={album.id}
+                          className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-all flex flex-col group"
+                        >
+                          {/* Cover Image */}
+                          <div
+                            onClick={() => setViewingAlbum(album)}
+                            className="h-48 bg-slate-100 relative overflow-hidden cursor-pointer"
+                          >
+                            <img
+                              src={album.cover || album.image_path}
+                              alt={album.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                            <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full flex items-center gap-1.5 backdrop-blur-sm">
+                              <Layers size={12} /> {album.photo_count || album.images?.length || 0}
+                            </div>
+                            <div className="absolute top-3 left-3 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow">
+                              <Star size={10} className="fill-white" /> Featured Cover
+                            </div>
+                          </div>
 
-                  {/* Singles */}
-                  {groupedGallery.singles.map(img => (
-                    <div key={img.id} className="relative group bg-white p-2 rounded-xl shadow border border-slate-100 h-fit">
-                      <div className="h-40 bg-slate-50 rounded-lg overflow-hidden flex items-center justify-center">
-                        <img src={img.image_path} className="max-h-full max-w-full" />
-                      </div>
-                      <button onClick={() => handleDeleteGallery(img.id)} className="absolute top-4 right-4 bg-white text-red-500 p-2 rounded-full shadow opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
+                          {/* Info & Actions */}
+                          <div className="p-5 flex-1 flex flex-col justify-between">
+                            <div>
+                              <h4
+                                onClick={() => setViewingAlbum(album)}
+                                className="font-bold text-slate-800 text-lg hover:text-blue-600 cursor-pointer truncate"
+                              >
+                                {album.title}
+                              </h4>
+
+                              {album.description && (
+                                <p className="text-slate-500 text-xs mt-1.5 line-clamp-2 leading-relaxed">
+                                  {album.description}
+                                </p>
+                              )}
+
+                              <div className="flex flex-wrap items-center gap-2 mt-3 text-xs text-slate-400">
+                                {album.event_date && (
+                                  <span className="flex items-center gap-1 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded">
+                                    <Calendar size={12} /> {new Date(album.event_date).toLocaleDateString()}
+                                  </span>
+                                )}
+                                {album.venue && (
+                                  <span className="flex items-center gap-1 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded truncate max-w-[180px]">
+                                    <MapPin size={12} /> {album.venue}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Card Footer: View & Delete */}
+                            <div className="flex items-center justify-between pt-4 mt-4 border-t border-slate-100">
+                              <button
+                                onClick={() => setViewingAlbum(album)}
+                                className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-semibold text-xs"
+                              >
+                                <Eye size={14} /> View Photos
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteAlbum(album.id)}
+                                className="flex items-center gap-1 text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg text-xs font-semibold transition-all"
+                                title="Delete Album"
+                              >
+                                <Trash2 size={15} /> Delete
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>
@@ -308,26 +658,11 @@ const AdminDashboard = () => {
           {/* RESOURCES */}
           {activeTab === 'resources' && (
             <div className="grid lg:grid-cols-3 gap-8">
-              <div className="bg-white p-6 rounded-2xl shadow-sm order-2 lg:order-1 h-fit">
-                <h3 className="font-bold mb-4 text-blue-900 flex items-center gap-2"><FolderOpen size={20} /> Upload Document</h3>
-                <form onSubmit={handleUploadResource} className="space-y-4">
-                  <input className="w-full border p-3 rounded-lg" placeholder="Document Title" value={resourceForm.title} onChange={e => setResourceForm({ ...resourceForm, title: e.target.value })} />
-                  <textarea className="w-full border p-3 rounded-lg h-20" placeholder="Description (Optional)" value={resourceForm.description} onChange={e => setResourceForm({ ...resourceForm, description: e.target.value })}></textarea>
-                  <input type="file" className="w-full text-sm" accept=".pdf,.doc,.docx,.jpg,.png" onChange={e => setResourceForm({ ...resourceForm, file: e.target.files[0] })} />
-                  <button className="w-full bg-purple-700 hover:bg-purple-800 text-white font-bold py-3 rounded-xl shadow-lg" disabled={uploading}>{uploading ? "Uploading..." : "Upload Resource"}</button>
-                </form>
-              </div>
-              <div className="lg:col-span-2 order-1 lg:order-2 space-y-3">
-                {resourceList.map(doc => (
-                  <div key={doc.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-4"><div className="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 shrink-0"><FileText size={24} /></div><div><h4 className="font-bold text-slate-800">{doc.title}</h4><p className="text-xs text-slate-400">{new Date(doc.created_at).toLocaleDateString()} • {doc.description || 'No description'}</p></div></div>
-                    <div className="flex items-center gap-2"><a href={doc.file_path} target="_blank" rel="noreferrer" className="p-2 text-blue-600 bg-blue-50 rounded-lg text-sm font-bold flex items-center gap-1"><Download size={16} /> View</a><button onClick={() => handleDeleteResource(doc.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg"><Trash2 size={18} /></button></div>
-                  </div>
-                ))}
-                {resourceList.length === 0 && <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-300"><p className="text-slate-500">No documents uploaded yet.</p></div>}
-              </div>
+              <div className="bg-white p-6 rounded-2xl shadow-sm order-2 lg:order-1 h-fit"><h3 className="font-bold mb-4 flex items-center gap-2"><Upload size={20} /> Upload Document</h3><form onSubmit={handleUploadResource} className="space-y-4"><input className="w-full border p-3 rounded" placeholder="Document Title" value={resourceForm.title} onChange={e => setResourceForm({ ...resourceForm, title: e.target.value })} /><textarea className="w-full border p-3 rounded h-24" placeholder="Description (Optional)" value={resourceForm.description} onChange={e => setResourceForm({ ...resourceForm, description: e.target.value })}></textarea><input type="file" className="w-full text-sm" onChange={e => setResourceForm({ ...resourceForm, file: e.target.files[0] })} /><button className="w-full bg-blue-900 text-white font-bold py-3 rounded shadow" disabled={uploading}>{uploading ? "Uploading..." : "Save Document"}</button></form></div>
+              <div className="lg:col-span-2 space-y-4 order-1 lg:order-2">{resourceList.map(item => <div key={item.id} className="bg-white p-4 rounded-xl shadow flex justify-between items-center"><div className="flex items-center gap-3"><FileText className="text-purple-600" size={24} /><div><h4 className="font-bold text-slate-800">{item.title}</h4><p className="text-xs text-slate-400">{item.description}</p></div></div><div className="flex gap-2"><a href={item.file_path} target="_blank" rel="noreferrer" className="text-blue-600 p-2"><Download size={18} /></a><button onClick={() => handleDeleteResource(item.id)} className="text-red-400 p-2"><Trash2 size={18} /></button></div></div>)}</div>
             </div>
           )}
+
         </div>
       </main>
     </div>
